@@ -61,7 +61,7 @@ export default function PlayerRow({ players }: { players: Player[] }) {
           margin: 1,
         }}
       >
-        <Typography variant="h7">ID: {player.id}, {player.name}, R: {player.rank}, Status: {player.status}, Played: {player.history.length} | {" "}
+        <Typography variant="h6">ID: {player.id}, {player.name}, R: {player.rank}, Status: {player.status}, Played: {player.history.length} | {" "}
         {player.status === "come"
           ? moment(currentTime).subtract(player.waitingSince).format("mm:ss")
           : ""}{" "}
