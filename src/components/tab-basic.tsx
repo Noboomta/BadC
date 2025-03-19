@@ -7,7 +7,6 @@ import MatchSection from './match-section';
 import SummarySection from './summary-section';
 import CourtSection from './court-section';
 import { Button, Typography } from '@mui/material';
-import PlayerProvider from '../providers/player-provider';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -41,7 +40,7 @@ function a11yProps(index: number) {
 export default function BasicTabs() {
   const [value, setValue] = React.useState(0);
 
-  const handleChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
   };
 
