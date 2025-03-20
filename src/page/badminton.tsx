@@ -32,7 +32,7 @@ function Badminton() {
           <ShuttleProvider>
             <HistoryProvider>
               <Container>
-                <Typography variant="h4" gutterBottom>
+                <Typography my={2} variant="h4" gutterBottom>
                   Badminton Management
                 </Typography>
                 <BasicTabs />

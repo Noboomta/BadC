@@ -36,14 +36,26 @@ export default function PlayerRow({ players }: { players: Player[] }) {
   const handlePaid = (player: Player) => {
     if (player.isPaid) {
         if (confirm("Player UnPaid?")) {
-            updatePlayer(player.name, { isPaid: !player.isPaid });
+            updatePlayer(player.name, { isPaid: !player.isPaid, status: "come" });
         }
     } 
     if (!player.isPaid) {
         if (confirm("Player Paid?")) {
-            updatePlayer(player.name, { isPaid: !player.isPaid });
+            updatePlayer(player.name, { isPaid: !player.isPaid, status: "go home" });
         }
     } 
+  };
+  
+  const shuttleCount = (player: Player) => {
+    return player.history.reduce((count, match) => {
+      if (
+        match.leftSidePlayersID.includes(player.id) ||
+        match.rightSidePlayersID.includes(player.id)
+      ) {
+        return count + match.ShuttleNumber.length;
+      }
+      return count;
+    }, 0);
   };
 
   const isReadOnly = (player: Player) => {
@@ -51,21 +63,21 @@ export default function PlayerRow({ players }: { players: Player[] }) {
   };
 
   return players
-    .sort((a, b) => b.waitingSince - a.waitingSince)
+    .sort((a, b) => a.waitingSince - b.waitingSince)
     .map((player, index) => (
       <Box
         key={index}
         sx={{
           backgroundColor: statusColors[player.status],
-          padding: 1,
-          margin: 1,
+          padding: 0.5,
+          margin: 0.5,
         }}
       >
-        <Typography variant="h6">ID: {player.id}, {player.name}, R: {player.rank}, Status: {player.status}, Played: {player.history.length} | {" "}
+        <Typography fontSize={16}>[{player.id}] {player.name}-{player.rank} [{player.status}] | Matchs: {player.history.length} Use: {shuttleCount(player)} | {" "}
         {player.status === "come"
           ? moment(currentTime).subtract(player.waitingSince).format("mm:ss")
           : ""}{" "}
-        |</Typography>
+        </Typography>
         
         {!isReadOnly(player) ? (
           <>

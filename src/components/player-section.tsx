@@ -14,11 +14,14 @@ export default function PlayerSection() {
     <Box sx={{ p: 0}}>
       <Typography variant="h5">Players</Typography>
       <TextField
+        id="filled-hidden-label-normal"
+        required
         label="Player Name"
         value={playerName}
         onChange={(e) => setPlayerName(e.target.value)}
       />
       <TextField
+        id="filled-hidden-label-normal"
         size="small"
         label="Player Rank"
         value={playerRank}

@@ -7,6 +7,7 @@ import MatchSection from './match-section';
 import SummarySection from './summary-section';
 import CourtSection from './court-section';
 import { Button, Typography } from '@mui/material';
+import { Refresh } from '@mui/icons-material';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -47,7 +48,12 @@ export default function BasicTabs() {
   return (
     <Box sx={{ width: '100%' }}>
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-        <Tabs value={value} onChange={handleChange} aria-label="basic tabs example">
+        <Tabs value={value} 
+            onChange={handleChange} 
+            aria-label="basic tabs example" 
+            variant="scrollable"
+            scrollButtons="auto"
+        >
           <Tab label="Player" {...a11yProps(0)} />
           <Tab label="Court" {...a11yProps(1)} />
           <Tab label="Match" {...a11yProps(2)} />
@@ -68,6 +74,7 @@ export default function BasicTabs() {
         <SummarySection/>
       </CustomTabPanel>
       <CustomTabPanel value={value} index={4}>
+        <Typography variant="h5">Each LocalStorage</Typography>
         <Button onClick={() => {
             localStorage.removeItem("playersData")
             localStorage.removeItem("lastedPlayerID")
@@ -93,6 +100,7 @@ export default function BasicTabs() {
         <Typography variant="h5">All LocalStorage</Typography>
         <Button onClick={() => {
             localStorage.clear()
+            window.location.reload();
         }}>
         Clear LocalStorage
         </Button>

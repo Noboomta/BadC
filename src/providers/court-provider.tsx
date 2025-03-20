@@ -9,6 +9,7 @@ type CourtContextType = {
   setCourts: React.Dispatch<React.SetStateAction<Court[]>>;
   addCourt: (name: string) => void;
   pauseCourt: (name: string) => void;
+  updateCourt: (name: string, updates: Partial<Court>) => void
 };
 
 const CourtContext = createContext<CourtContextType | undefined>(undefined);
@@ -65,9 +66,15 @@ export default function CourtProvider({ children }: { children: ReactNode }) {
       )
     );
   };
+  
+  const updateCourt = (name: string, updates: Partial<Court>) => {
+      setCourts((prevCourt) =>
+        prevCourt.map((p) => (p.name === name ? { ...p, ...updates } : p))
+      );
+    };
 
   return (
-    <CourtContext.Provider value={{ courts, setCourts, addCourt, pauseCourt }}>
+    <CourtContext.Provider value={{ courts, setCourts, addCourt, pauseCourt, updateCourt }}>
       {children}
     </CourtContext.Provider>
   );

@@ -21,6 +21,7 @@ type PlayerContextType = {
   updatePlayer: (name: string, updates: Partial<Player>) => void;
   updatePlayerByID: (id: number, updates: Partial<Player>) => void;
   clearPlayer: () => void;
+  getPlayerNameByID: (id: number) => string
 };
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
@@ -86,6 +87,15 @@ export default function PlayerProvider({ children }: { children: ReactNode }) {
       console.log("Player not found.");
     }
   };
+  
+  const getPlayerNameByID = (id: number): string => {
+    const player = players.find((player) => player.id === id);
+    if (player) {
+      return player.name;
+    } else {
+      return "";
+    }
+  }
 
   const updatePlayer = (name: string, updates: Partial<Player>) => {
     setPlayers((prevPlayers) =>
@@ -114,7 +124,8 @@ export default function PlayerProvider({ children }: { children: ReactNode }) {
         addExistedPlayer,
         findIDOfPlayer,
         updatePlayerByID,
-        clearPlayer
+        clearPlayer,
+        getPlayerNameByID
       }}
     >
       {children}
