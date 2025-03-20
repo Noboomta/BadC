@@ -5,7 +5,7 @@ import { usePlayerContext } from "../providers/player-provider";
 import { useShuttleContext } from "../providers/shuttle-provider";
 import { Court, Player } from "../types";
 import { useHistoryContext } from "../providers/history-provider";
-import moment from "moment";
+import * as moment from 'moment';
 import { flushSync } from "react-dom";
 
 export default function MatchSection() {
@@ -85,6 +85,7 @@ export default function MatchSection() {
       setRightSidePlayers([]);
     });
 
+    // @ts-expect-error randoSequence is defined in rando.js
     const randomedPlayers = randoSequence(availablePlayers);
     console.log(randomedPlayers);
     handlePlayerSelection(randomedPlayers[0].value, "left");
