@@ -7,7 +7,6 @@ import MatchSection from './match-section';
 import SummarySection from './summary-section';
 import CourtSection from './court-section';
 import { Button, Typography } from '@mui/material';
-import { Refresh } from '@mui/icons-material';
 
 interface TabPanelProps {
   children?: React.ReactNode;
