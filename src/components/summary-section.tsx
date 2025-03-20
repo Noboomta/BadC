@@ -72,7 +72,7 @@ export default function SummarySection() {
                 sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
               >
                 <TableCell component="th" scope="row">
-                  {moment(row.startedTime).format("mm:ss")}
+                  {moment(row.endedTime).format("mm:ss")}
                 </TableCell>
                 <TableCell>
                   {moment(row.endedTime).format("mm:ss")}
