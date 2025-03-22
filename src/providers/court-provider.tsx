@@ -2,7 +2,7 @@ import moment from "moment";
 import { createContext, ReactNode, useContext, useEffect, useState } from "react";
 import { Court } from "../types";
 
-const LOCAL_STORAGE_KEY_COURT = "courtsData";
+const LOCAL_STORAGE_KEY_COURT = "courtsData2";
 
 type CourtContextType = {
   courts: Court[];

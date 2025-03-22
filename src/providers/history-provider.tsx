@@ -8,7 +8,7 @@ import {
 import { MatchHistory } from "../types";
 import moment from "moment";
 
-const LOCAL_STORAGE_KEY_HISTORY = "matchHistories";
+const LOCAL_STORAGE_KEY_HISTORY = "matchHistories2";
 
 type HistoryContextType = {
   histories: MatchHistory[];

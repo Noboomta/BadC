@@ -15,7 +15,7 @@ type ShuttleContextType = {
   clearShuttles: () => void;
 };
 
-const LOCAL_STORAGE_KEY_SHUTTLES = "shuttlesData";
+const LOCAL_STORAGE_KEY_SHUTTLES = "shuttlesData2";
 
 const ShuttleContext = createContext<ShuttleContextType | undefined>(undefined);
 export const useShuttleContext = () => useContext(ShuttleContext)!;

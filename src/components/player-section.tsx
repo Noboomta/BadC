@@ -1,5 +1,14 @@
 import { useState } from "react";
-import { Button, Typography, Box, TextField } from "@mui/material";
+import {
+  Button,
+  Typography,
+  Box,
+  TextField,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+} from "@mui/material";
 
 import { usePlayerContext } from "../providers/player-provider";
 
@@ -10,8 +19,10 @@ export default function PlayerSection() {
   const [playerName, setPlayerName] = useState("");
   const [playerRank, setPlayerRank] = useState("");
 
+  const rankOptions = ["bg", "bg+", "n-", "n", "n+", "s", "s+", "unknow"];
+
   return (
-    <Box sx={{ p: 0}}>
+    <Box sx={{ p: 0 }}>
       <Typography variant="h5">Players</Typography>
       <TextField
         id="filled-hidden-label-normal"
@@ -20,13 +31,23 @@ export default function PlayerSection() {
         value={playerName}
         onChange={(e) => setPlayerName(e.target.value)}
       />
-      <TextField
-        id="filled-hidden-label-normal"
-        size="small"
-        label="Player Rank"
-        value={playerRank}
-        onChange={(e) => setPlayerRank(e.target.value)}
-      />
+      <FormControl sx={{ minWidth: 120, ml: 1 }}>
+        <InputLabel id="player-rank-label">Rank</InputLabel>
+        <Select
+          labelId="player-rank-label"
+          id="player-rank-select"
+          size="small"
+          value={playerRank}
+          label="Rank"
+          onChange={(e) => setPlayerRank(e.target.value)}
+        >
+          {rankOptions.map((rank) => (
+            <MenuItem key={rank} value={rank}>
+              {rank}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
       <Button
         sx={{ m: 2 }}
         variant="contained"
@@ -38,21 +59,9 @@ export default function PlayerSection() {
       >
         Add Player
       </Button>
-      <PlayerRow
-        players={players.filter((player) => player.status === "come")}
-      />
-      <PlayerRow
-        players={players.filter((player) => player.status === "playing")}
-      />
-      <PlayerRow
-        players={players.filter((player) => player.status === "pause")}
-      />
-      <PlayerRow
-        players={players.filter((player) => player.status === "go home")}
-      />
-      <PlayerRow
-        players={players.filter((player) => player.status === "offline")}
-      />
+
+      {/* Use a single PlayerRow with all players */}
+      <PlayerRow players={players} />
     </Box>
   );
 }

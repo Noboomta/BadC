@@ -8,3 +8,20 @@ export const statusColors: Record<string, string> = {
     using: "#1976d2",
     paused: "#ff9800",
   };
+  
+  export const rankColor: Record<string, string> = {
+    // Bronze colors for bg ranks
+    bg: "#CD7F32", // bronze
+    "bg+": "#A0522D", // darker bronze
+    
+    // Silver colors for n ranks
+    "n-": "#C0C0C0", // lighter silver
+    n: "#A9A9A9", // silver
+    "n+": "#808080", // darker silver
+    
+    // Gold colors for s ranks
+    s: "#FFD700", // gold
+    "s+": "#DAA520", // darker gold
+    
+    unknown: "#9E9E9E" // grey
+  };

@@ -15,9 +15,6 @@ import {
   Container,
   Alert,
   IconButton,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
 } from "@mui/material";
 import { useCourtContext } from "../providers/court-provider";
 import { usePlayerContext } from "../providers/player-provider";
@@ -35,10 +32,6 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import SportsIcon from "@mui/icons-material/Sports";
 import QueueIcon from "@mui/icons-material/Queue";
 import DeleteIcon from "@mui/icons-material/Delete";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
-import SecurityIcon from "@mui/icons-material/Security";
-import KitchenIcon from "@mui/icons-material/Kitchen";
 
 // Interface for queued match
 interface QueuedMatch {
@@ -59,7 +52,6 @@ export default function MatchSection() {
   const [selectedCourt, setSelectedCourt] = useState<string>("");
   const [shuttleNumber, setShuttleNumber] = useState(0);
   const [additionalShuttleNumber, setAdditionalShuttleNumber] = useState(0);
-  const [selectedRanks, setSelectedRanks] = useState<string[]>([]);
 
   // State for match queue
   const [matchQueue, setMatchQueue] = useState<QueuedMatch[]>([]);
@@ -234,78 +226,6 @@ export default function MatchSection() {
     handlePlayerSelection(randomedPlayers[3].value, "right");
   };
 
-  const handleRandomByRank = () => {
-    if (selectedRanks.length === 0) {
-      alert("Please select at least one rank to filter players.");
-      return;
-    }
-
-    const filteredPlayers = players.filter(
-      (player) =>
-        player.status === "come" && selectedRanks.includes(player.rank)
-    );
-
-    if (filteredPlayers.length < 4) {
-      alert(
-        `Not enough players (${filteredPlayers.length}) in the selected ranks. Need at least 4.`
-      );
-      return;
-    }
-
-    flushSync(() => {
-      setLeftSidePlayers([]);
-      setRightSidePlayers([]);
-    });
-
-    // @ts-expect-error randoSequence is defined in rando.js
-    const randomedPlayers = randoSequence(filteredPlayers);
-    handlePlayerSelection(randomedPlayers[0].value, "left");
-    handlePlayerSelection(randomedPlayers[1].value, "left");
-    handlePlayerSelection(randomedPlayers[2].value, "right");
-    handlePlayerSelection(randomedPlayers[3].value, "right");
-  };
-
-  const handleRandomByWaitingTime = () => {
-    if (selectedRanks.length === 0) {
-      alert("Please select at least one rank to filter players.");
-      return;
-    }
-
-    const filteredPlayers = players.filter(
-      (player) =>
-        player.status === "come" && selectedRanks.includes(player.rank)
-    );
-
-    if (filteredPlayers.length < 4) {
-      alert(
-        `Not enough players (${filteredPlayers.length}) in the selected ranks. Need at least 4.`
-      );
-      return;
-    }
-
-    // Sort by waiting time (smaller waitingSince timestamp = waiting longer)
-    const sortedPlayers = [...filteredPlayers].sort(
-      (a, b) => a.waitingSince - b.waitingSince
-    );
-
-    flushSync(() => {
-      setLeftSidePlayers([]);
-      setRightSidePlayers([]);
-    });
-
-    // Take the 4 players who have been waiting the longest
-    handlePlayerSelection(sortedPlayers[0], "left");
-    handlePlayerSelection(sortedPlayers[1], "left");
-    handlePlayerSelection(sortedPlayers[2], "right");
-    handlePlayerSelection(sortedPlayers[3], "right");
-  };
-
-  const handleToggleRank = (rank: string) => {
-    setSelectedRanks((prev) =>
-      prev.includes(rank) ? prev.filter((r) => r !== rank) : [...prev, rank]
-    );
-  };
-
   const handlePlayerSelection = (player: Player, side: "left" | "right") => {
     if (leftSidePlayers.includes(player) || rightSidePlayers.includes(player)) {
       if (side === "left") {
@@ -415,37 +335,16 @@ export default function MatchSection() {
     return rankColor[rank] || rankColor["unknown"];
   };
 
-  // Get appropriate icon for rank
-  const getRankIcon = (rank: string) => {
-    if (rank === "s" || rank === "s+") {
-      return <EmojiEventsIcon fontSize="small" />;
-    } else if (rank === "n-" || rank === "n" || rank === "n+") {
-      return <SecurityIcon fontSize="small" />;
-    } else if (rank === "bg" || rank === "bg+") {
-      return <KitchenIcon fontSize="small" />;
-    }
-    return undefined;
-  };
-
   // Group players by rank for better organization
   const groupPlayersByRank = (players: Player[]) => {
     // Create groups by rank
     const groups: Record<string, Player[]> = {};
 
-    // Create placeholder for all ranks to ensure they appear even if empty
-    const allRanks = ["bg", "bg+", "n-", "n", "n+", "s", "s+", "unknow"];
-    allRanks.forEach((rank) => {
-      groups[rank] = [];
-    });
-
-    // Add players to their rank groups
     players.forEach((player) => {
-      if (groups[player.rank]) {
-        groups[player.rank].push(player);
-      } else {
-        // If rank is not in our predefined list, add to unknown
-        groups["unknow"].push(player);
+      if (!groups[player.rank]) {
+        groups[player.rank] = [];
       }
+      groups[player.rank].push(player);
     });
 
     // Sort players within each rank by waiting time (earliest first)
@@ -457,16 +356,14 @@ export default function MatchSection() {
     });
 
     // Sort the ranks by priority
-    const rankPriority = ["bg", "bg+", "n-", "n", "n+", "s", "s+", "unknow"];
+    const rankPriority = ["s+", "s", "n+", "n", "n-", "bg+", "bg", "unknow"];
 
-    // Return sorted groups, filtering out empty groups
-    return Object.entries(groups)
-      .filter(([, players]) => players.length > 0) // Only include groups with players
-      .sort((a, b) => {
-        const rankA = rankPriority.indexOf(a[0]);
-        const rankB = rankPriority.indexOf(b[0]);
-        return rankA - rankB;
-      });
+    // Return sorted groups
+    return Object.entries(groups).sort((a, b) => {
+      const rankA = rankPriority.indexOf(a[0]);
+      const rankB = rankPriority.indexOf(b[0]);
+      return rankA - rankB;
+    });
   };
 
   const availableCourts = courts.filter((p) => p.status === "available");
@@ -490,7 +387,7 @@ export default function MatchSection() {
       </Typography>
 
       {/* Ongoing Matches Section */}
-      <Paper elevation={1} sx={{ p: { xs: 1.5, sm: 2 }, mb: 3 }}>
+      <Paper elevation={2} sx={{ p: 2, mb: 4 }}>
         <Typography
           variant="h6"
           gutterBottom
@@ -500,15 +397,15 @@ export default function MatchSection() {
         </Typography>
 
         {ongoingMatches.length === 0 ? (
-          <Alert severity="info" sx={{ my: 1.5 }} variant="outlined">
+          <Alert severity="info" sx={{ my: 2 }}>
             No ongoing matches. Start a new match below.
           </Alert>
         ) : (
-          <Grid container spacing={1.5}>
+          <Grid container spacing={2}>
             {ongoingMatches.map((court, index) => (
               <Grid item xs={12} sm={6} md={4} key={index}>
                 <Card variant="outlined" sx={{ height: "100%" }}>
-                  <CardContent sx={{ pb: 1, pt: 1.5, px: 1.5 }}>
+                  <CardContent>
                     <Typography variant="h6" color="primary">
                       Court: {court.name}
                     </Typography>
@@ -517,8 +414,8 @@ export default function MatchSection() {
                       sx={{
                         display: "flex",
                         alignItems: "center",
-                        mt: 0.5,
-                        mb: 1.5,
+                        mt: 1,
+                        mb: 2,
                       }}
                     >
                       <AccessTimeIcon
@@ -535,7 +432,7 @@ export default function MatchSection() {
                       </Typography>
                     </Box>
 
-                    <Divider sx={{ mb: 1.5 }} />
+                    <Divider sx={{ mb: 2 }} />
 
                     <Stack
                       direction="row"
@@ -638,7 +535,7 @@ export default function MatchSection() {
       </Paper>
 
       {/* Match Queue Section */}
-      <Paper elevation={1} sx={{ p: { xs: 1.5, sm: 2 }, mb: 3 }}>
+      <Paper elevation={2} sx={{ p: 2, mb: 4 }}>
         <Typography
           variant="h6"
           gutterBottom
@@ -648,12 +545,12 @@ export default function MatchSection() {
         </Typography>
 
         {matchQueue.length === 0 ? (
-          <Alert severity="info" sx={{ my: 1.5 }} variant="outlined">
+          <Alert severity="info" sx={{ my: 2 }}>
             No matches in queue. Create a new match below and add it to the
             queue.
           </Alert>
         ) : (
-          <Grid container spacing={1.5}>
+          <Grid container spacing={2}>
             {matchQueue.map((queueItem) => (
               <Grid item xs={12} sm={6} md={4} key={queueItem.id}>
                 <Card
@@ -678,7 +575,7 @@ export default function MatchSection() {
                       </Typography>
                     )}
 
-                    <Divider sx={{ my: 1.5 }} />
+                    <Divider sx={{ my: 2 }} />
 
                     <Stack
                       direction="row"
@@ -814,13 +711,13 @@ export default function MatchSection() {
       </Paper>
 
       {/* New Match Creation Section */}
-      <Paper elevation={1} sx={{ p: { xs: 1.5, sm: 2 } }}>
+      <Paper elevation={2} sx={{ p: 2 }}>
         <Typography variant="h6" gutterBottom>
           Create New Match
         </Typography>
 
         {/* Court Selection */}
-        <Box sx={{ mb: 2 }}>
+        <Box sx={{ mb: 3 }}>
           <Typography variant="subtitle1" gutterBottom>
             Select Court
           </Typography>
@@ -845,237 +742,109 @@ export default function MatchSection() {
         <Grid container spacing={3}>
           {/* Left Side Player Selection */}
           <Grid item xs={12} md={6}>
-            <Accordion defaultExpanded sx={{ mb: 2 }}>
-              <AccordionSummary
-                expandIcon={<ExpandMoreIcon />}
-                sx={{
-                  bgcolor: "#e3f2fd",
-                  borderRadius: "4px 4px 0 0",
-                }}
-              >
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Typography variant="subtitle1" fontWeight="bold">
-                    Left Side Players
-                  </Typography>
-                  <Chip
-                    label={`${leftSidePlayers.length}/2`}
-                    color={leftSidePlayers.length === 2 ? "success" : "default"}
-                    size="small"
-                  />
-                </Stack>
-              </AccordionSummary>
-              <AccordionDetails>
-                {availablePlayers.length === 0 ? (
-                  <Alert severity="warning">No players available</Alert>
-                ) : (
-                  <Box sx={{ width: "100%" }}>
-                    <Grid container spacing={2}>
-                      {rankedPlayers.map(([rank, players]) => (
-                        <Grid item xs={6} sm={6} md={4} key={rank}>
-                          <Box
-                            sx={{
-                              height: "100%",
-                              minHeight: "150px",
-                              border: `1px solid ${
-                                rankColor[rank] || rankColor["unknown"]
-                              }`,
-                              borderRadius: 1,
-                              p: 1,
-                              display: "flex",
-                              flexDirection: "column",
-                            }}
-                          >
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                bgcolor: getRankColor(rank),
-                                px: 1,
-                                py: 0.5,
-                                borderRadius: 1,
-                                mb: 1,
-                                textAlign: "center",
-                                color:
-                                  rank === "unknow" ? "text.primary" : "white",
-                              }}
-                            >
-                              {rank !== "unknow" && getRankIcon(rank)} {rank} (
-                              {players.length})
-                            </Typography>
-                            <Box
-                              sx={{
-                                display: "flex",
-                                flexDirection: "row",
-                                flexWrap: "wrap",
-                                gap: 1,
-                                justifyContent: "space-between",
-                              }}
-                            >
-                              {players.map((player) => (
-                                <Chip
-                                  key={player.id}
-                                  label={player.name}
-                                  onClick={() =>
-                                    handlePlayerSelection(player, "left")
-                                  }
-                                  color={
-                                    leftSidePlayers.includes(player)
-                                      ? "primary"
-                                      : "default"
-                                  }
-                                  variant={
-                                    leftSidePlayers.includes(player)
-                                      ? "filled"
-                                      : "outlined"
-                                  }
-                                  sx={{
-                                    my: 0.5,
-                                    flexBasis: "calc(50% - 8px)",
-                                    maxWidth: "calc(50% - 8px)",
-                                    height: "auto",
-                                    "& .MuiChip-label": {
-                                      overflow: "visible",
-                                      textOverflow: "clip",
-                                      whiteSpace: "normal",
-                                      lineHeight: "1.2",
-                                      paddingTop: "4px",
-                                      paddingBottom: "4px",
-                                    },
-                                  }}
-                                />
-                              ))}
-                            </Box>
-                          </Box>
-                        </Grid>
+            <Typography variant="subtitle1" gutterBottom>
+              Left Side Players ({leftSidePlayers.length}/2)
+            </Typography>
+            {availablePlayers.length === 0 ? (
+              <Alert severity="warning">No players available</Alert>
+            ) : (
+              <Stack spacing={1.5}>
+                {rankedPlayers.map(([rank, players]) => (
+                  <Box key={rank}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        display: "inline-block",
+                        bgcolor: getRankColor(rank),
+                        px: 1,
+                        py: 0.5,
+                        borderRadius: 1,
+                        mb: 0.5,
+                        color: rank === "unknow" ? "text.primary" : "white",
+                      }}
+                    >
+                      {rank} ({players.length})
+                    </Typography>
+                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                      {players.map((player) => (
+                        <Chip
+                          key={player.id}
+                          label={player.name}
+                          onClick={() => handlePlayerSelection(player, "left")}
+                          color={
+                            leftSidePlayers.includes(player)
+                              ? "primary"
+                              : "default"
+                          }
+                          variant={
+                            leftSidePlayers.includes(player)
+                              ? "filled"
+                              : "outlined"
+                          }
+                          sx={{ m: 0.5 }}
+                        />
                       ))}
-                    </Grid>
+                    </Box>
                   </Box>
-                )}
-              </AccordionDetails>
-            </Accordion>
+                ))}
+              </Stack>
+            )}
           </Grid>
 
           {/* Right Side Player Selection */}
           <Grid item xs={12} md={6}>
-            <Accordion defaultExpanded sx={{ mb: 2 }}>
-              <AccordionSummary
-                expandIcon={<ExpandMoreIcon />}
-                sx={{
-                  bgcolor: "#fff8e1",
-                  borderRadius: "4px 4px 0 0",
-                }}
-              >
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Typography variant="subtitle1" fontWeight="bold">
-                    Right Side Players
-                  </Typography>
-                  <Chip
-                    label={`${rightSidePlayers.length}/2`}
-                    color={
-                      rightSidePlayers.length === 2 ? "success" : "default"
-                    }
-                    size="small"
-                  />
-                </Stack>
-              </AccordionSummary>
-              <AccordionDetails>
-                {availablePlayers.length === 0 ? (
-                  <Alert severity="warning">No players available</Alert>
-                ) : (
-                  <Box sx={{ width: "100%" }}>
-                    <Grid container spacing={2}>
-                      {rankedPlayers.map(([rank, players]) => (
-                        <Grid item xs={6} sm={6} md={4} key={rank}>
-                          <Box
-                            sx={{
-                              height: "100%",
-                              minHeight: "150px",
-                              border: `1px solid ${
-                                rankColor[rank] || rankColor["unknown"]
-                              }`,
-                              borderRadius: 1,
-                              p: 1,
-                              display: "flex",
-                              flexDirection: "column",
-                            }}
-                          >
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                bgcolor: getRankColor(rank),
-                                px: 1,
-                                py: 0.5,
-                                borderRadius: 1,
-                                mb: 1,
-                                textAlign: "center",
-                                color:
-                                  rank === "unknow" ? "text.primary" : "white",
-                              }}
-                            >
-                              {rank !== "unknow" && getRankIcon(rank)} {rank} (
-                              {players.length})
-                            </Typography>
-                            <Box
-                              sx={{
-                                display: "flex",
-                                flexDirection: "row",
-                                flexWrap: "wrap",
-                                gap: 1,
-                                justifyContent: "space-between",
-                              }}
-                            >
-                              {players.map((player) => (
-                                <Chip
-                                  key={player.id}
-                                  label={player.name}
-                                  onClick={() =>
-                                    handlePlayerSelection(player, "right")
-                                  }
-                                  color={
-                                    rightSidePlayers.includes(player)
-                                      ? "primary"
-                                      : "default"
-                                  }
-                                  variant={
-                                    rightSidePlayers.includes(player)
-                                      ? "filled"
-                                      : "outlined"
-                                  }
-                                  sx={{
-                                    my: 0.5,
-                                    flexBasis: "calc(50% - 8px)",
-                                    maxWidth: "calc(50% - 8px)",
-                                    height: "auto",
-                                    "& .MuiChip-label": {
-                                      overflow: "visible",
-                                      textOverflow: "clip",
-                                      whiteSpace: "normal",
-                                      lineHeight: "1.2",
-                                      paddingTop: "4px",
-                                      paddingBottom: "4px",
-                                    },
-                                  }}
-                                />
-                              ))}
-                            </Box>
-                          </Box>
-                        </Grid>
+            <Typography variant="subtitle1" gutterBottom>
+              Right Side Players ({rightSidePlayers.length}/2)
+            </Typography>
+            {availablePlayers.length === 0 ? (
+              <Alert severity="warning">No players available</Alert>
+            ) : (
+              <Stack spacing={1.5}>
+                {rankedPlayers.map(([rank, players]) => (
+                  <Box key={rank}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        display: "inline-block",
+                        bgcolor: getRankColor(rank),
+                        px: 1,
+                        py: 0.5,
+                        borderRadius: 1,
+                        mb: 0.5,
+                        color: rank === "unknow" ? "text.primary" : "white",
+                      }}
+                    >
+                      {rank} ({players.length})
+                    </Typography>
+                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                      {players.map((player) => (
+                        <Chip
+                          key={player.id}
+                          label={player.name}
+                          onClick={() => handlePlayerSelection(player, "right")}
+                          color={
+                            rightSidePlayers.includes(player)
+                              ? "primary"
+                              : "default"
+                          }
+                          variant={
+                            rightSidePlayers.includes(player)
+                              ? "filled"
+                              : "outlined"
+                          }
+                          sx={{ m: 0.5 }}
+                        />
                       ))}
-                    </Grid>
+                    </Box>
                   </Box>
-                )}
-              </AccordionDetails>
-            </Accordion>
+                ))}
+              </Stack>
+            )}
           </Grid>
         </Grid>
 
         {/* Shuttle Number Input - only shown for direct match start */}
-        <Box sx={{ mt: 2, mb: 2 }}>
+        <Box sx={{ mt: 3, mb: 2 }}>
           <Typography variant="subtitle1" gutterBottom>
             Shuttle Number (required for starting match)
           </Typography>
@@ -1102,82 +871,20 @@ export default function MatchSection() {
           </Typography>
         </Box>
 
-        {/* Rank Selection for Random Options */}
-        <Box sx={{ mt: 2, mb: 2 }}>
-          <Typography variant="subtitle1" gutterBottom>
-            Select Ranks for Random Selection
-          </Typography>
-          <Stack direction="row" spacing={0.5} flexWrap="wrap">
-            {["bg", "bg+", "n-", "n", "n+", "s", "s+", "unknow"].map((rank) => (
-              <Chip
-                key={rank}
-                label={rank}
-                icon={rank !== "unknow" ? getRankIcon(rank) : undefined}
-                onClick={() => handleToggleRank(rank)}
-                color={selectedRanks.includes(rank) ? "primary" : "default"}
-                variant={selectedRanks.includes(rank) ? "filled" : "outlined"}
-                size="small"
-                sx={{
-                  m: 0.5,
-                  border: selectedRanks.includes(rank)
-                    ? "2px solid"
-                    : "1px solid",
-                  boxShadow: selectedRanks.includes(rank) ? 1 : 0,
-                  fontWeight: selectedRanks.includes(rank) ? "bold" : "normal",
-                  transform: selectedRanks.includes(rank)
-                    ? "scale(1.03)"
-                    : "scale(1)",
-                  transition: "all 0.2s ease",
-                  bgcolor: selectedRanks.includes(rank)
-                    ? `${rankColor[rank]}15` // Even more transparency (15%)
-                    : "default",
-                  color: "black",
-                  "& .MuiChip-label": {
-                    color: "black",
-                  },
-                }}
-              />
-            ))}
-          </Stack>
-        </Box>
-
         {/* Action Buttons */}
         <Stack
           direction={{ xs: "column", sm: "row" }}
-          spacing={1.5}
-          sx={{ mt: 2.5 }}
+          spacing={2}
+          sx={{ mt: 3 }}
         >
           <Button
-            variant="text"
+            variant="outlined"
             color="secondary"
             startIcon={<ShuffleIcon />}
             onClick={handleRandomSelectPlayers}
             disabled={availablePlayers.length < 4}
-            size="small"
           >
-            Random All
-          </Button>
-
-          <Button
-            variant="text"
-            color="secondary"
-            startIcon={<ShuffleIcon />}
-            onClick={handleRandomByRank}
-            disabled={selectedRanks.length === 0}
-            size="small"
-          >
-            Random by Rank
-          </Button>
-
-          <Button
-            variant="text"
-            color="secondary"
-            startIcon={<AccessTimeIcon />}
-            onClick={handleRandomByWaitingTime}
-            disabled={selectedRanks.length === 0}
-            size="small"
-          >
-            Random by Wait Time
+            Random Selection
           </Button>
 
           <Button
@@ -1188,7 +895,6 @@ export default function MatchSection() {
             disabled={
               leftSidePlayers.length !== 2 || rightSidePlayers.length !== 2
             }
-            size="small"
           >
             Add To Queue
           </Button>
@@ -1204,7 +910,6 @@ export default function MatchSection() {
               selectedCourt === "" ||
               !shuttleNumber
             }
-            size="small"
           >
             Start Match Now
           </Button>
