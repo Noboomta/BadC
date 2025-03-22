@@ -1,12 +1,15 @@
-import * as React from 'react';
-import Tabs from '@mui/material/Tabs';
-import Tab from '@mui/material/Tab';
-import Box from '@mui/material/Box';
-import PlayerSection from './player-section';
-import MatchSection from './match-section';
-import SummarySection from './summary-section';
-import CourtSection from './court-section';
-import { Button, Typography } from '@mui/material';
+import * as React from "react";
+import { Suspense, lazy } from "react";
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
+import Box from "@mui/material/Box";
+import { Button, Typography, CircularProgress } from "@mui/material";
+
+// Lazy load components
+const PlayerSection = lazy(() => import("./player-section"));
+const MatchSection = lazy(() => import("./match-section"));
+const SummarySection = lazy(() => import("./summary-section"));
+const CourtSection = lazy(() => import("./court-section"));
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -25,7 +28,19 @@ function CustomTabPanel(props: TabPanelProps) {
       aria-labelledby={`simple-tab-${index}`}
       {...other}
     >
-      {value === index && <Box sx={{ p: 0 }}>{children}</Box>}
+      {value === index && (
+        <Box sx={{ p: 0 }}>
+          <Suspense
+            fallback={
+              <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
+                <CircularProgress />
+              </Box>
+            }
+          >
+            {children}
+          </Suspense>
+        </Box>
+      )}
     </div>
   );
 }
@@ -33,7 +48,7 @@ function CustomTabPanel(props: TabPanelProps) {
 function a11yProps(index: number) {
   return {
     id: `simple-tab-${index}`,
-    'aria-controls': `simple-tabpanel-${index}`,
+    "aria-controls": `simple-tabpanel-${index}`,
   };
 }
 
@@ -45,13 +60,14 @@ export default function BasicTabs() {
   };
 
   return (
-    <Box sx={{ width: '100%' }}>
-      <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-        <Tabs value={value} 
-            onChange={handleChange} 
-            aria-label="basic tabs example" 
-            variant="scrollable"
-            scrollButtons="auto"
+    <Box sx={{ width: "100%" }}>
+      <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+        <Tabs
+          value={value}
+          onChange={handleChange}
+          aria-label="basic tabs example"
+          variant="scrollable"
+          scrollButtons="auto"
         >
           <Tab label="Player" {...a11yProps(0)} />
           <Tab label="Court" {...a11yProps(1)} />
@@ -61,47 +77,57 @@ export default function BasicTabs() {
         </Tabs>
       </Box>
       <CustomTabPanel value={value} index={0}>
-        <PlayerSection/>
+        <PlayerSection />
       </CustomTabPanel>
       <CustomTabPanel value={value} index={1}>
-        <CourtSection/>
+        <CourtSection />
       </CustomTabPanel>
       <CustomTabPanel value={value} index={2}>
-        <MatchSection/>
+        <MatchSection />
       </CustomTabPanel>
       <CustomTabPanel value={value} index={3}>
-        <SummarySection/>
+        <SummarySection />
       </CustomTabPanel>
       <CustomTabPanel value={value} index={4}>
         <Typography variant="h5">Each LocalStorage</Typography>
-        <Button onClick={() => {
-            localStorage.removeItem("playersData")
-            localStorage.removeItem("lastedPlayerID")
-        }}>
-        Clear Player LocalStorage
+        <Button
+          onClick={() => {
+            localStorage.removeItem("playersData");
+            localStorage.removeItem("lastedPlayerID");
+          }}
+        >
+          Clear Player LocalStorage
         </Button>
-        <Button onClick={() => {
-            localStorage.removeItem("courtsData")
-        }}>
-        Clear Court LocalStorage
+        <Button
+          onClick={() => {
+            localStorage.removeItem("courtsData");
+          }}
+        >
+          Clear Court LocalStorage
         </Button>
-        <Button onClick={() => {
-            localStorage.removeItem("matchHistories")
-        }}>
-        Clear History LocalStorage
+        <Button
+          onClick={() => {
+            localStorage.removeItem("matchHistories");
+          }}
+        >
+          Clear History LocalStorage
         </Button>
-        <Button onClick={() => {
-            localStorage.removeItem("shuttlesData")
-        }}>
-        Clear Shuttle LocalStorage
+        <Button
+          onClick={() => {
+            localStorage.removeItem("shuttlesData");
+          }}
+        >
+          Clear Shuttle LocalStorage
         </Button>
-        
+
         <Typography variant="h5">All LocalStorage</Typography>
-        <Button onClick={() => {
-            localStorage.clear()
+        <Button
+          onClick={() => {
+            localStorage.clear();
             window.location.reload();
-        }}>
-        Clear LocalStorage
+          }}
+        >
+          Clear LocalStorage
         </Button>
       </CustomTabPanel>
     </Box>
