@@ -1,7 +1,6 @@
 import {
   Typography,
   Box,
-  Paper,
   Table,
   TableBody,
   TableCell,
@@ -388,7 +387,7 @@ export default function SummarySection() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredHistories.map((row, index) => {
+                  {filteredHistories.map((row) => {
                     const duration = moment.duration(
                       moment(row.endedTime).diff(moment(row.startedTime))
                     );
