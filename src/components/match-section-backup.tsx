@@ -236,7 +236,6 @@ export default function MatchSection() {
     } else {
       if (side === "left" && leftSidePlayers.length < 2) {
         setLeftSidePlayers((prev) => {
-          console.log("prev" + prev);
           return [...prev, player];
         });
       } else if (side === "right" && rightSidePlayers.length < 2) {

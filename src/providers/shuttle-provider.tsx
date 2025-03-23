@@ -15,7 +15,7 @@ type ShuttleContextType = {
   clearShuttles: () => void;
 };
 
-const LOCAL_STORAGE_KEY_SHUTTLES = "shuttlesData2";
+const LOCAL_STORAGE_KEY_SHUTTLES = "shuttlesData5";
 
 const ShuttleContext = createContext<ShuttleContextType | undefined>(undefined);
 export const useShuttleContext = () => useContext(ShuttleContext)!;
@@ -44,7 +44,7 @@ export default function ShuttleProvider({ children }: { children: ReactNode }) {
       return false;
     }
   };
-  
+
   const clearShuttles = () => {
     setShuttles([]);
     localStorage.removeItem(LOCAL_STORAGE_KEY_SHUTTLES);

@@ -1,15 +1,22 @@
 import moment from "moment";
-import { createContext, ReactNode, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import { Court } from "../types";
 
-const LOCAL_STORAGE_KEY_COURT = "courtsData2";
+const LOCAL_STORAGE_KEY_COURT = "courtsData5";
 
 type CourtContextType = {
   courts: Court[];
   setCourts: React.Dispatch<React.SetStateAction<Court[]>>;
   addCourt: (name: string) => void;
   pauseCourt: (name: string) => void;
-  updateCourt: (name: string, updates: Partial<Court>) => void
+  updateCourt: (name: string, updates: Partial<Court>) => void;
+  deleteCourt: (name: string) => void;
 };
 
 const CourtContext = createContext<CourtContextType | undefined>(undefined);
@@ -21,8 +28,8 @@ export default function CourtProvider({ children }: { children: ReactNode }) {
     return savedCourts ? JSON.parse(savedCourts) : [];
   });
 
-   // Save courts to localStorage whenever they change
-   useEffect(() => {
+  // Save courts to localStorage whenever they change
+  useEffect(() => {
     localStorage.setItem(LOCAL_STORAGE_KEY_COURT, JSON.stringify(courts));
   }, [courts]);
 
@@ -66,15 +73,38 @@ export default function CourtProvider({ children }: { children: ReactNode }) {
       )
     );
   };
-  
+
   const updateCourt = (name: string, updates: Partial<Court>) => {
-      setCourts((prevCourt) =>
-        prevCourt.map((p) => (p.name === name ? { ...p, ...updates } : p))
-      );
-    };
+    setCourts((prevCourt) =>
+      prevCourt.map((p) => (p.name === name ? { ...p, ...updates } : p))
+    );
+  };
+
+  const deleteCourt = (name: string) => {
+    // Only allow deletion if court is not in use
+    const court = courts.find((court) => court.name === name);
+    if (court && court.status === "using") {
+      alert("Cannot delete court that is currently in use.");
+      return;
+    }
+
+    // Confirm before deletion
+    if (window.confirm(`Are you sure you want to delete court "${name}"?`)) {
+      setCourts(courts.filter((court) => court.name !== name));
+    }
+  };
 
   return (
-    <CourtContext.Provider value={{ courts, setCourts, addCourt, pauseCourt, updateCourt }}>
+    <CourtContext.Provider
+      value={{
+        courts,
+        setCourts,
+        addCourt,
+        pauseCourt,
+        updateCourt,
+        deleteCourt,
+      }}
+    >
       {children}
     </CourtContext.Provider>
   );

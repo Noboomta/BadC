@@ -6,10 +6,9 @@ import {
   useState,
 } from "react";
 import { Player } from "../types";
-import moment from "moment";
 
-const LOCAL_STORAGE_KEY_PLAYER = "playersData";
-const LAST_PLAYER_ID_KEY = "lastedPlayerID";
+const LOCAL_STORAGE_KEY_PLAYER = "playersData5";
+const LAST_PLAYER_ID_KEY = "lastedPlayerID5";
 
 // let lastedPlayerID = 0;
 
@@ -21,7 +20,8 @@ type PlayerContextType = {
   updatePlayer: (name: string, updates: Partial<Player>) => void;
   updatePlayerByID: (id: number, updates: Partial<Player>) => void;
   clearPlayer: () => void;
-  getPlayerNameByID: (id: number) => string
+  getPlayerNameByID: (id: number) => string;
+  resetAllPlayersStats: () => Promise<void>;
 };
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
@@ -56,10 +56,10 @@ export default function PlayerProvider({ children }: { children: ReactNode }) {
         status: "come",
         isPaid: false,
         history: [],
-        rank,
+        rank: rank || "unknow",
         id: lastedPlayerID + 1,
-        waitingSince: moment.now(),
-        comeTime: moment.now(),
+        waitingSince: Date.now(),
+        comeTime: Date.now(),
         goHomeTime: null,
       };
 
@@ -87,7 +87,7 @@ export default function PlayerProvider({ children }: { children: ReactNode }) {
       console.log("Player not found.");
     }
   };
-  
+
   const getPlayerNameByID = (id: number): string => {
     const player = players.find((player) => player.id === id);
     if (player) {
@@ -95,7 +95,7 @@ export default function PlayerProvider({ children }: { children: ReactNode }) {
     } else {
       return "";
     }
-  }
+  };
 
   const updatePlayer = (name: string, updates: Partial<Player>) => {
     setPlayers((prevPlayers) =>
@@ -108,11 +108,32 @@ export default function PlayerProvider({ children }: { children: ReactNode }) {
       prevPlayers.map((p) => (p.id === id ? { ...p, ...updates } : p))
     );
   };
-  
+
   const clearPlayer = () => {
     setPlayers([]);
     localStorage.removeItem(LOCAL_STORAGE_KEY_PLAYER);
     localStorage.removeItem(LAST_PLAYER_ID_KEY);
+  };
+
+  const resetAllPlayersStats = async (): Promise<void> => {
+    const currentTime = Date.now();
+
+    // Reset all players to offline, clear history, reset times
+    const updatedPlayers = players.map((player) => {
+      return {
+        ...player,
+        status: "offline",
+        waitingSince: currentTime,
+        comeTime: null,
+        goHomeTime: null,
+        history: [], // Clear individual history
+        // Keep other fields (rank, id, name, isPaid)
+      };
+    });
+
+    setPlayers(updatedPlayers);
+    console.log("All player stats have been reset");
+    return Promise.resolve();
   };
 
   return (
@@ -120,12 +141,13 @@ export default function PlayerProvider({ children }: { children: ReactNode }) {
       value={{
         players,
         addPlayer,
-        updatePlayer,
-        addExistedPlayer,
         findIDOfPlayer,
+        addExistedPlayer,
+        updatePlayer,
         updatePlayerByID,
         clearPlayer,
-        getPlayerNameByID
+        getPlayerNameByID,
+        resetAllPlayersStats,
       }}
     >
       {children}

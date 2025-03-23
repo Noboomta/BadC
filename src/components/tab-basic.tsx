@@ -1,9 +1,22 @@
 import * as React from "react";
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useState } from "react";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import Box from "@mui/material/Box";
-import { Button, Typography, CircularProgress } from "@mui/material";
+import {
+  Button,
+  Typography,
+  CircularProgress,
+  Paper,
+  Divider,
+  Stack,
+  Alert,
+  Snackbar,
+} from "@mui/material";
+import { usePlayerContext } from "../providers/player-provider";
+import { useCourtContext } from "../providers/court-provider";
+import { useQueueContext } from "../providers/queue-provider";
+import { useShuttleContext } from "../providers/shuttle-provider";
 
 // Lazy load components
 const PlayerSection = lazy(() => import("./player-section"));
@@ -54,9 +67,58 @@ function a11yProps(index: number) {
 
 export default function BasicTabs() {
   const [value, setValue] = React.useState(0);
+  const [resetSuccess, setResetSuccess] = useState(false);
+  const { resetAllPlayersStats } = usePlayerContext();
+  const { courts, setCourts } = useCourtContext();
+  const { clearQueue } = useQueueContext();
+  const { clearShuttles } = useShuttleContext();
 
   const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
+  };
+
+  const handleResetPlayerStats = async () => {
+    if (
+      confirm(
+        "Are you sure you want to reset all player stats? This will:\n\n1. Change all players to offline status\n2. Reset wait times and history\n3. Keep player ranks and names\n4. Reset all courts to available and clear ongoing matches\n5. Clear the match queue\n6. Reset court match counters to zero\n7. Clear all shuttles used\n8. Reset match history\n9. Remove all matches from the queue"
+      )
+    ) {
+      try {
+        // Reset player stats
+        await resetAllPlayersStats();
+
+        // Reset courts - set all to available, clear current matches, and reset matchCount
+        setCourts(
+          courts.map((court) => ({
+            ...court,
+            status: "available",
+            currentMatch: null,
+            matchCount: 0,
+          }))
+        );
+
+        // Clear the match queue
+        clearQueue();
+
+        // Clear all shuttles
+        clearShuttles();
+
+        // Clear match history
+        localStorage.removeItem("matchHistories5");
+
+        // Clear queue data from localStorage
+        localStorage.removeItem("queueData5");
+        localStorage.removeItem("queueCounter5");
+
+        // Reload the page to refresh all state
+        window.location.reload();
+
+        setResetSuccess(true);
+      } catch (error) {
+        console.error("Error resetting player stats and courts:", error);
+        alert("Error resetting player stats and courts");
+      }
+    }
   };
 
   return (
@@ -89,46 +151,130 @@ export default function BasicTabs() {
         <SummarySection />
       </CustomTabPanel>
       <CustomTabPanel value={value} index={4}>
-        <Typography variant="h5">Each LocalStorage</Typography>
-        <Button
-          onClick={() => {
-            localStorage.removeItem("playersData");
-            localStorage.removeItem("lastedPlayerID");
-          }}
-        >
-          Clear Player LocalStorage
-        </Button>
-        <Button
-          onClick={() => {
-            localStorage.removeItem("courtsData");
-          }}
-        >
-          Clear Court LocalStorage
-        </Button>
-        <Button
-          onClick={() => {
-            localStorage.removeItem("matchHistories");
-          }}
-        >
-          Clear History LocalStorage
-        </Button>
-        <Button
-          onClick={() => {
-            localStorage.removeItem("shuttlesData");
-          }}
-        >
-          Clear Shuttle LocalStorage
-        </Button>
+        <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h5" gutterBottom color="primary">
+            Reset Player Stats
+          </Typography>
+          <Typography variant="body1" paragraph>
+            This will:
+            <ol>
+              <li>Reset all player statuses to "offline"</li>
+              <li>Clear individual player history</li>
+              <li>Reset waiting times and timestamps</li>
+              <li>Keep player names and ranks</li>
+              <li>Reset all courts to "available" and clear ongoing matches</li>
+              <li>Clear the match queue</li>
+              <li>Reset court match counters to zero</li>
+              <li>Clear all shuttles used</li>
+              <li>Clear match history</li>
+              <li>Remove all matches from the queue</li>
+            </ol>
+          </Typography>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleResetPlayerStats}
+            sx={{ mt: 2 }}
+          >
+            Reset Player Stats
+          </Button>
+        </Paper>
 
-        <Typography variant="h5">All LocalStorage</Typography>
-        <Button
-          onClick={() => {
-            localStorage.clear();
-            window.location.reload();
-          }}
+        <Divider sx={{ my: 3 }} />
+
+        <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h5" gutterBottom color="error">
+            Danger Zone
+          </Typography>
+          <Typography variant="h6">Clear Storage</Typography>
+          <Stack
+            direction="row"
+            spacing={2}
+            sx={{ mt: 2, flexWrap: "wrap", gap: 2 }}
+          >
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={() => {
+                localStorage.removeItem("playersData5");
+                localStorage.removeItem("lastedPlayerID5");
+              }}
+            >
+              Clear Player LocalStorage
+            </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={() => {
+                localStorage.removeItem("courtsData5");
+              }}
+            >
+              Clear Court LocalStorage
+            </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={() => {
+                localStorage.removeItem("matchHistories5");
+              }}
+            >
+              Clear History LocalStorage
+            </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={() => {
+                localStorage.removeItem("shuttlesData5");
+              }}
+            >
+              Clear Shuttle LocalStorage
+            </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={() => {
+                localStorage.removeItem("queueData5");
+                localStorage.removeItem("queueCounter5");
+              }}
+            >
+              Clear Queue LocalStorage
+            </Button>
+          </Stack>
+
+          <Box sx={{ mt: 4 }}>
+            <Button
+              variant="contained"
+              color="error"
+              onClick={() => {
+                if (
+                  confirm(
+                    "Are you sure you want to clear ALL data? This cannot be undone."
+                  )
+                ) {
+                  localStorage.clear();
+                  window.location.reload();
+                }
+              }}
+            >
+              Clear All LocalStorage
+            </Button>
+          </Box>
+        </Paper>
+
+        <Snackbar
+          open={resetSuccess}
+          autoHideDuration={6000}
+          onClose={() => setResetSuccess(false)}
+          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         >
-          Clear LocalStorage
-        </Button>
+          <Alert
+            onClose={() => setResetSuccess(false)}
+            severity="success"
+            sx={{ width: "100%" }}
+          >
+            All player stats have been reset successfully!
+          </Alert>
+        </Snackbar>
       </CustomTabPanel>
     </Box>
   );

@@ -40,6 +40,9 @@ export default function SummarySection() {
 
   const [searchPlayer, setSearchPlayer] = useState("");
 
+  // Filter out offline players for the session statistics
+  const activePlayers = players.filter((player) => player.status !== "offline");
+
   const filteredHistories = histories.filter((h) => {
     if (searchPlayer.trim() === "") return true;
 
@@ -65,11 +68,13 @@ export default function SummarySection() {
     return acc;
   }, {} as Record<string, number>);
 
-  // Get payment stats
-  const paidPlayers = players.filter((p) => p.isPaid).length;
-  const unpaidPlayers = players.filter((p) => !p.isPaid).length;
+  // Get payment stats (only for active players)
+  const paidPlayers = activePlayers.filter((p) => p.isPaid).length;
+  const unpaidPlayers = activePlayers.filter((p) => !p.isPaid).length;
   const paymentPercentage =
-    players.length > 0 ? Math.round((paidPlayers / players.length) * 100) : 0;
+    activePlayers.length > 0
+      ? Math.round((paidPlayers / activePlayers.length) * 100)
+      : 0;
 
   // Status color mapping
   const statusColors = {
@@ -111,34 +116,36 @@ export default function SummarySection() {
               <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
                 <PersonIcon color="primary" sx={{ mr: 1 }} />
                 <Typography variant="h6" component="h2">
-                  Players ({players.length})
+                  Active Players ({activePlayers.length})
                 </Typography>
               </Box>
 
               <Stack spacing={1} sx={{ mb: 2 }}>
-                {Object.entries(playerStatusCount).map(([status, count]) => (
-                  <Box
-                    key={status}
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Chip
-                      label={status}
-                      size="small"
+                {Object.entries(playerStatusCount)
+                  .filter(([status]) => status !== "offline")
+                  .map(([status, count]) => (
+                    <Box
+                      key={status}
                       sx={{
-                        bgcolor: getStatusColor(status) + "20",
-                        color: getStatusColor(status),
-                        border: `1px solid ${getStatusColor(status)}`,
-                        fontWeight: "medium",
-                        minWidth: "80px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
                       }}
-                    />
-                    <Typography variant="body1">{count} players</Typography>
-                  </Box>
-                ))}
+                    >
+                      <Chip
+                        label={status}
+                        size="small"
+                        sx={{
+                          bgcolor: getStatusColor(status) + "20",
+                          color: getStatusColor(status),
+                          border: `1px solid ${getStatusColor(status)}`,
+                          fontWeight: "medium",
+                          minWidth: "80px",
+                        }}
+                      />
+                      <Typography variant="body1">{count} players</Typography>
+                    </Box>
+                  ))}
               </Stack>
 
               <Divider sx={{ my: 2 }} />
@@ -232,7 +239,7 @@ export default function SummarySection() {
 
               <Box>
                 <Typography variant="body2" color="text.secondary">
-                  Total matches played on all courts: {histories.length}
+                  Total matches played on courts: {histories.length}
                 </Typography>
                 {courts.map((court) => (
                   <Typography
@@ -379,7 +386,7 @@ export default function SummarySection() {
                 <TableHead>
                   <TableRow sx={{ backgroundColor: "#f5f7fa" }}>
                     <TableCell>Start Time</TableCell>
-                    <TableCell>End Time</TableCell>
+
                     <TableCell>Duration</TableCell>
                     <TableCell>Left Side</TableCell>
                     <TableCell>Right Side</TableCell>
@@ -405,9 +412,7 @@ export default function SummarySection() {
                         <TableCell>
                           {moment(row.startedTime).format("HH:mm:ss")}
                         </TableCell>
-                        <TableCell>
-                          {moment(row.endedTime).format("HH:mm:ss")}
-                        </TableCell>
+
                         <TableCell>{`${minutes}m ${seconds}s`}</TableCell>
                         <TableCell>
                           <Stack direction="row" spacing={0.5} flexWrap="wrap">

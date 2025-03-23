@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Button,
   Typography,
@@ -18,6 +18,8 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
+  FormControlLabel,
+  Switch,
 } from "@mui/material";
 import { useCourtContext } from "../providers/court-provider";
 import { usePlayerContext } from "../providers/player-provider";
@@ -26,7 +28,7 @@ import { Court, MatchHistory, Player } from "../types";
 import { useHistoryContext } from "../providers/history-provider";
 // import * as dayjs from 'dayjs'
 import { flushSync } from "react-dom";
-import { rankColor } from "../constant";
+import { rankColor, statusColors } from "../constant";
 import ShuffleIcon from "@mui/icons-material/Shuffle";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StopIcon from "@mui/icons-material/Stop";
@@ -39,6 +41,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import SecurityIcon from "@mui/icons-material/Security";
 import KitchenIcon from "@mui/icons-material/Kitchen";
+import { useQueueContext } from "../providers/queue-provider";
 
 // Interface for queued match
 interface QueuedMatch {
@@ -54,16 +57,17 @@ export default function MatchSection() {
   const { shuttles } = useShuttleContext();
   const { addShuttle } = useShuttleContext();
   const { recordHistory } = useHistoryContext();
+  const { matchQueue, setMatchQueue, queueIdCounter, setQueueIdCounter } =
+    useQueueContext();
   const [leftSidePlayers, setLeftSidePlayers] = useState<Player[]>([]);
   const [rightSidePlayers, setRightSidePlayers] = useState<Player[]>([]);
   const [selectedCourt, setSelectedCourt] = useState<string>("");
   const [shuttleNumber, setShuttleNumber] = useState(0);
   const [additionalShuttleNumber, setAdditionalShuttleNumber] = useState(0);
   const [selectedRanks, setSelectedRanks] = useState<string[]>([]);
+  const [mergeRanks, setMergeRanks] = useState(false);
 
   // State for match queue
-  const [matchQueue, setMatchQueue] = useState<QueuedMatch[]>([]);
-  const [queueIdCounter, setQueueIdCounter] = useState(1);
   const [selectedQueueItem, setSelectedQueueItem] =
     useState<QueuedMatch | null>(null);
 
@@ -192,6 +196,11 @@ export default function MatchSection() {
     setMatchQueue([...matchQueue, newQueueItem]);
     setQueueIdCounter(queueIdCounter + 1);
 
+    // Update player status to "queue" for all selected players
+    [...leftSidePlayers, ...rightSidePlayers].forEach((player) => {
+      updatePlayer(player.name, { status: "queue" });
+    });
+
     // Clear selection after adding to queue
     setLeftSidePlayers([]);
     setRightSidePlayers([]);
@@ -200,6 +209,30 @@ export default function MatchSection() {
 
   // Function to remove a match from queue
   const removeFromQueue = (id: number) => {
+    // Find the queue item before removing it
+    const queueItem = matchQueue.find((item) => item.id === id);
+
+    // Update the removed players' status back to "come"
+    if (queueItem) {
+      [...queueItem.leftSidePlayers, ...queueItem.rightSidePlayers].forEach(
+        (player) => {
+          // Check if the player is in any other queue items
+          const isInOtherQueue = matchQueue.some(
+            (item) =>
+              item.id !== id &&
+              (item.leftSidePlayers.some((p) => p.id === player.id) ||
+                item.rightSidePlayers.some((p) => p.id === player.id))
+          );
+
+          // Only change status if not in other queue items
+          if (!isInOtherQueue) {
+            updatePlayerByID(player.id, { status: "come" });
+          }
+        }
+      );
+    }
+
+    // Remove the queue item
     setMatchQueue(matchQueue.filter((match) => match.id !== id));
     if (selectedQueueItem?.id === id) {
       setSelectedQueueItem(null);
@@ -212,10 +245,10 @@ export default function MatchSection() {
   };
 
   const handleRandomSelectPlayers = () => {
-    const availablePlayers = players.filter(
-      (player) => player.status === "come"
+    const playersForSelection = players.filter(
+      (player) => player.status === "come" // Only include "come" status, exclude "queue"
     );
-    if (availablePlayers.length < 4) {
+    if (playersForSelection.length < 4) {
       alert("Must have at least 4 available players.");
       return;
     }
@@ -226,7 +259,7 @@ export default function MatchSection() {
     });
 
     // @ts-expect-error randoSequence is defined in rando.js
-    const randomedPlayers = randoSequence(availablePlayers);
+    const randomedPlayers = randoSequence(playersForSelection);
     console.log(randomedPlayers);
     handlePlayerSelection(randomedPlayers[0].value, "left");
     handlePlayerSelection(randomedPlayers[1].value, "left");
@@ -242,7 +275,8 @@ export default function MatchSection() {
 
     const filteredPlayers = players.filter(
       (player) =>
-        player.status === "come" && selectedRanks.includes(player.rank)
+        player.status === "come" && // Only include "come" status, exclude "queue"
+        selectedRanks.includes(player.rank)
     );
 
     if (filteredPlayers.length < 4) {
@@ -273,7 +307,8 @@ export default function MatchSection() {
 
     const filteredPlayers = players.filter(
       (player) =>
-        player.status === "come" && selectedRanks.includes(player.rank)
+        player.status === "come" && // Only include "come" status, exclude "queue"
+        selectedRanks.includes(player.rank)
     );
 
     if (filteredPlayers.length < 4) {
@@ -316,7 +351,6 @@ export default function MatchSection() {
     } else {
       if (side === "left" && leftSidePlayers.length < 2) {
         setLeftSidePlayers((prev) => {
-          console.log("prev" + prev);
           return [...prev, player];
         });
       } else if (side === "right" && rightSidePlayers.length < 2) {
@@ -432,46 +466,107 @@ export default function MatchSection() {
     // Create groups by rank
     const groups: Record<string, Player[]> = {};
 
-    // Create placeholder for all ranks to ensure they appear even if empty
-    const allRanks = ["bg", "bg+", "n-", "n", "n+", "s", "s+", "unknow"];
-    allRanks.forEach((rank) => {
-      groups[rank] = [];
-    });
+    if (mergeRanks) {
+      // Initialize merged rank groups
+      groups["bg/bg+"] = [];
+      groups["n-/n/n+"] = [];
+      groups["s/s+"] = [];
+      groups["unknow"] = [];
 
-    // Add players to their rank groups
-    players.forEach((player) => {
-      if (groups[player.rank]) {
-        groups[player.rank].push(player);
-      } else {
-        // If rank is not in our predefined list, add to unknown
-        groups["unknow"].push(player);
-      }
-    });
-
-    // Sort players within each rank by waiting time (earliest first)
-    Object.keys(groups).forEach((rank) => {
-      groups[rank].sort((a, b) => {
-        // Sort by waiting time (smaller value = earlier time = longer wait)
-        return a.waitingSince - b.waitingSince;
+      // Add players to their merged rank groups
+      players.forEach((player) => {
+        if (player.rank === "bg" || player.rank === "bg+") {
+          groups["bg/bg+"].push(player);
+        } else if (
+          player.rank === "n-" ||
+          player.rank === "n" ||
+          player.rank === "n+"
+        ) {
+          groups["n-/n/n+"].push(player);
+        } else if (player.rank === "s" || player.rank === "s+") {
+          groups["s/s+"].push(player);
+        } else {
+          groups["unknow"].push(player);
+        }
       });
-    });
 
-    // Sort the ranks by priority
-    const rankPriority = ["bg", "bg+", "n-", "n", "n+", "s", "s+", "unknow"];
-
-    // Return sorted groups, filtering out empty groups
-    return Object.entries(groups)
-      .filter(([, players]) => players.length > 0) // Only include groups with players
-      .sort((a, b) => {
-        const rankA = rankPriority.indexOf(a[0]);
-        const rankB = rankPriority.indexOf(b[0]);
-        return rankA - rankB;
+      // Sort players within each group by waiting time
+      Object.keys(groups).forEach((rank) => {
+        groups[rank].sort((a, b) => {
+          return a.waitingSince - b.waitingSince;
+        });
       });
+
+      // Return sorted groups, filtering out empty groups
+      return Object.entries(groups)
+        .filter(([, players]) => players.length > 0)
+        .sort((a, b) => {
+          const rankPriority = ["bg/bg+", "n-/n/n+", "s/s+", "unknow"];
+          return rankPriority.indexOf(a[0]) - rankPriority.indexOf(b[0]);
+        });
+    } else {
+      // Original non-merged implementation
+      // Create placeholder for all ranks to ensure they appear even if empty
+      const allRanks = ["bg", "bg+", "n-", "n", "n+", "s", "s+", "unknow"];
+      allRanks.forEach((rank) => {
+        groups[rank] = [];
+      });
+
+      // Add players to their rank groups
+      players.forEach((player) => {
+        if (groups[player.rank]) {
+          groups[player.rank].push(player);
+        } else {
+          // If rank is not in our predefined list, add to unknown
+          groups["unknow"].push(player);
+        }
+      });
+
+      // Sort players within each rank by waiting time (earliest first)
+      Object.keys(groups).forEach((rank) => {
+        groups[rank].sort((a, b) => {
+          // Sort by waiting time (smaller value = earlier time = longer wait)
+          return a.waitingSince - b.waitingSince;
+        });
+      });
+
+      // Sort the ranks by priority
+      const rankPriority = ["bg", "bg+", "n-", "n", "n+", "s", "s+", "unknow"];
+
+      // Return sorted groups, filtering out empty groups
+      return Object.entries(groups)
+        .filter(([, players]) => players.length > 0) // Only include groups with players
+        .sort((a, b) => {
+          const rankA = rankPriority.indexOf(a[0]);
+          const rankB = rankPriority.indexOf(b[0]);
+          return rankA - rankB;
+        });
+    }
+  };
+
+  // Get rank color for merged ranks
+  const getMergedRankColor = (mergedRank: string): string => {
+    if (mergedRank === "bg/bg+") return rankColor["bg+"];
+    if (mergedRank === "n-/n/n+") return rankColor["n"];
+    if (mergedRank === "s/s+") return rankColor["s"];
+    return rankColor["unknow"];
+  };
+
+  // Get appropriate icon for merged rank
+  const getMergedRankIcon = (mergedRank: string) => {
+    if (mergedRank === "s/s+") {
+      return <EmojiEventsIcon fontSize="small" />;
+    } else if (mergedRank === "n-/n/n+") {
+      return <SecurityIcon fontSize="small" />;
+    } else if (mergedRank === "bg/bg+") {
+      return <KitchenIcon fontSize="small" />;
+    }
+    return undefined;
   };
 
   const availableCourts = courts.filter((p) => p.status === "available");
   const availablePlayers = players
-    .filter((p) => p.status === "come")
+    .filter((p) => p.status === "come") // Only include "come" status, exclude "queue" and "playing"
     .sort((a, b) => a.id - b.id);
   const rankedPlayers = groupPlayersByRank(availablePlayers);
   const ongoingMatches = courts
@@ -482,6 +577,32 @@ export default function MatchSection() {
     const court = courts.find((c) => c.name === courtName);
     return court ? court.name : "Unknown court";
   };
+
+  // Add a function to get the current player details
+  const getUpdatedPlayer = (player: Player): Player => {
+    const currentPlayer = players.find((p) => p.id === player.id);
+    return currentPlayer || player;
+  };
+
+  // Add a useEffect to sync player statuses with queue
+  useEffect(() => {
+    // Sync queue status with player status
+    const queuedPlayers = players.filter((player) => player.status === "queue");
+
+    queuedPlayers.forEach((player) => {
+      const isInQueue = matchQueue.some(
+        (queueItem) =>
+          queueItem.leftSidePlayers.some((p) => p.id === player.id) ||
+          queueItem.rightSidePlayers.some((p) => p.id === player.id)
+      );
+
+      if (!isInQueue) {
+        updatePlayer(player.name, { status: "come" });
+      }
+    });
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchQueue, players]);
 
   return (
     <Container maxWidth={false} sx={{ py: 2, px: { xs: 1, sm: 2 } }}>
@@ -674,36 +795,58 @@ export default function MatchSection() {
                       </Typography>
                     ) : (
                       <Typography variant="h6" color="text.secondary">
-                        No Court Selected
+                        Court: Not assigned
                       </Typography>
                     )}
 
                     <Divider sx={{ my: 1.5 }} />
 
-                    <Stack
-                      direction="row"
-                      justifyContent="space-between"
-                      sx={{ mb: 1 }}
-                    >
+                    <Stack spacing={1.5}>
                       <Box>
                         <Typography variant="body2" color="text.secondary">
                           Left Side
                         </Typography>
-                        <Typography>
-                          {queueItem.leftSidePlayers
-                            .map((p) => p.name)
-                            .join(", ")}
-                        </Typography>
+                        {queueItem.leftSidePlayers.map((player) => {
+                          // Get current player state
+                          const currentPlayer = getUpdatedPlayer(player);
+                          return (
+                            <Chip
+                              key={player.id}
+                              label={currentPlayer.name}
+                              size="small"
+                              sx={{
+                                bgcolor:
+                                  statusColors[currentPlayer.status] ||
+                                  statusColors.come,
+                                color: "white",
+                                mb: 0.5,
+                              }}
+                            />
+                          );
+                        })}
                       </Box>
-                      <Box sx={{ textAlign: "right" }}>
+                      <Box>
                         <Typography variant="body2" color="text.secondary">
                           Right Side
                         </Typography>
-                        <Typography>
-                          {queueItem.rightSidePlayers
-                            .map((p) => p.name)
-                            .join(", ")}
-                        </Typography>
+                        {queueItem.rightSidePlayers.map((player) => {
+                          // Get current player state
+                          const currentPlayer = getUpdatedPlayer(player);
+                          return (
+                            <Chip
+                              key={player.id}
+                              label={currentPlayer.name}
+                              size="small"
+                              sx={{
+                                bgcolor:
+                                  statusColors[currentPlayer.status] ||
+                                  statusColors.come,
+                                color: "white",
+                                mb: 0.5,
+                              }}
+                            />
+                          );
+                        })}
                       </Box>
                     </Stack>
                   </CardContent>
@@ -842,6 +985,24 @@ export default function MatchSection() {
           )}
         </Box>
 
+        {/* Merge rank toggle */}
+        <Box sx={{ mb: 2, mt: 2 }}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={mergeRanks}
+                onChange={() => setMergeRanks(!mergeRanks)}
+                color="primary"
+              />
+            }
+            label={
+              <Typography variant="body2">
+                Merge ranks (bg/bg+, n-/n/n+, s/s+)
+              </Typography>
+            }
+          />
+        </Box>
+
         <Grid container spacing={3}>
           {/* Left Side Player Selection */}
           <Grid item xs={12} md={6}>
@@ -877,7 +1038,9 @@ export default function MatchSection() {
                               height: "100%",
                               minHeight: "150px",
                               border: `1px solid ${
-                                rankColor[rank] || rankColor["unknown"]
+                                mergeRanks
+                                  ? getMergedRankColor(rank)
+                                  : rankColor[rank] || rankColor["unknown"]
                               }`,
                               borderRadius: 1,
                               p: 1,
@@ -891,7 +1054,9 @@ export default function MatchSection() {
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
-                                bgcolor: getRankColor(rank),
+                                bgcolor: mergeRanks
+                                  ? getMergedRankColor(rank)
+                                  : getRankColor(rank),
                                 px: 1,
                                 py: 0.5,
                                 borderRadius: 1,
@@ -901,8 +1066,11 @@ export default function MatchSection() {
                                   rank === "unknow" ? "text.primary" : "white",
                               }}
                             >
-                              {rank !== "unknow" && getRankIcon(rank)} {rank} (
-                              {players.length})
+                              {rank !== "unknow" &&
+                                (mergeRanks
+                                  ? getMergedRankIcon(rank)
+                                  : getRankIcon(rank))}{" "}
+                              {rank} ({players.length})
                             </Typography>
                             <Box
                               sx={{
@@ -993,7 +1161,9 @@ export default function MatchSection() {
                               height: "100%",
                               minHeight: "150px",
                               border: `1px solid ${
-                                rankColor[rank] || rankColor["unknown"]
+                                mergeRanks
+                                  ? getMergedRankColor(rank)
+                                  : rankColor[rank] || rankColor["unknown"]
                               }`,
                               borderRadius: 1,
                               p: 1,
@@ -1007,7 +1177,9 @@ export default function MatchSection() {
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
-                                bgcolor: getRankColor(rank),
+                                bgcolor: mergeRanks
+                                  ? getMergedRankColor(rank)
+                                  : getRankColor(rank),
                                 px: 1,
                                 py: 0.5,
                                 borderRadius: 1,
@@ -1017,8 +1189,11 @@ export default function MatchSection() {
                                   rank === "unknow" ? "text.primary" : "white",
                               }}
                             >
-                              {rank !== "unknow" && getRankIcon(rank)} {rank} (
-                              {players.length})
+                              {rank !== "unknow" &&
+                                (mergeRanks
+                                  ? getMergedRankIcon(rank)
+                                  : getRankIcon(rank))}{" "}
+                              {rank} ({players.length})
                             </Typography>
                             <Box
                               sx={{
@@ -1107,37 +1282,158 @@ export default function MatchSection() {
           <Typography variant="subtitle1" gutterBottom>
             Select Ranks for Random Selection
           </Typography>
+
+          {/* Selected Ranks Box */}
+          {selectedRanks.length > 0 && (
+            <Box
+              sx={{
+                p: 1.5,
+                mb: 2,
+                border: "1px solid",
+                borderColor: "primary.main",
+                borderRadius: 1,
+                bgcolor: "primary.light",
+                opacity: 0.8,
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Selected Ranks:
+              </Typography>
+              <Stack direction="row" spacing={0.5} flexWrap="wrap">
+                {mergeRanks
+                  ? // Display merged rank groups
+                    [
+                      { key: "bg/bg+", ranks: ["bg", "bg+"] },
+                      { key: "n-/n/n+", ranks: ["n-", "n", "n+"] },
+                      { key: "s/s+", ranks: ["s", "s+"] },
+                      { key: "unknow", ranks: ["unknow"] },
+                    ]
+                      .filter((group) =>
+                        group.ranks.some((r) => selectedRanks.includes(r))
+                      )
+                      .map((group) => (
+                        <Chip
+                          key={group.key}
+                          label={group.key}
+                          icon={getMergedRankIcon(group.key)}
+                          onDelete={() => {
+                            // Remove all ranks in this group that are already selected
+                            const ranksToRemove = group.ranks.filter((r) =>
+                              selectedRanks.includes(r)
+                            );
+                            setSelectedRanks(
+                              selectedRanks.filter(
+                                (r) => !ranksToRemove.includes(r)
+                              )
+                            );
+                          }}
+                          color="primary"
+                          variant="filled"
+                          size="small"
+                          sx={{
+                            m: 0.5,
+                            fontWeight: "bold",
+                            boxShadow: 1,
+                            bgcolor: `${getMergedRankColor(group.key)}40`,
+                          }}
+                        />
+                      ))
+                  : // Original individual rank display
+                    selectedRanks.map((rank) => (
+                      <Chip
+                        key={rank}
+                        label={rank}
+                        icon={rank !== "unknow" ? getRankIcon(rank) : undefined}
+                        onDelete={() => handleToggleRank(rank)}
+                        color="primary"
+                        variant="filled"
+                        size="small"
+                        sx={{
+                          m: 0.5,
+                          fontWeight: "bold",
+                          boxShadow: 1,
+                          bgcolor: `${rankColor[rank]}40`,
+                        }}
+                      />
+                    ))}
+              </Stack>
+            </Box>
+          )}
+
+          {/* Available Ranks */}
+          <Typography variant="subtitle2" sx={{ mt: 1 }}>
+            Available Ranks:
+          </Typography>
           <Stack direction="row" spacing={0.5} flexWrap="wrap">
-            {["bg", "bg+", "n-", "n", "n+", "s", "s+", "unknow"].map((rank) => (
-              <Chip
-                key={rank}
-                label={rank}
-                icon={rank !== "unknow" ? getRankIcon(rank) : undefined}
-                onClick={() => handleToggleRank(rank)}
-                color={selectedRanks.includes(rank) ? "primary" : "default"}
-                variant={selectedRanks.includes(rank) ? "filled" : "outlined"}
-                size="small"
-                sx={{
-                  m: 0.5,
-                  border: selectedRanks.includes(rank)
-                    ? "2px solid"
-                    : "1px solid",
-                  boxShadow: selectedRanks.includes(rank) ? 1 : 0,
-                  fontWeight: selectedRanks.includes(rank) ? "bold" : "normal",
-                  transform: selectedRanks.includes(rank)
-                    ? "scale(1.03)"
-                    : "scale(1)",
-                  transition: "all 0.2s ease",
-                  bgcolor: selectedRanks.includes(rank)
-                    ? `${rankColor[rank]}15` // Even more transparency (15%)
-                    : "default",
-                  color: "black",
-                  "& .MuiChip-label": {
-                    color: "black",
-                  },
-                }}
-              />
-            ))}
+            {mergeRanks
+              ? // Merged rank options
+                [
+                  { key: "bg/bg+", ranks: ["bg", "bg+"] },
+                  { key: "n-/n/n+", ranks: ["n-", "n", "n+"] },
+                  { key: "s/s+", ranks: ["s", "s+"] },
+                  { key: "unknow", ranks: ["unknow"] },
+                ]
+                  .filter(
+                    (group) =>
+                      !group.ranks.every((r) => selectedRanks.includes(r))
+                  )
+                  .map((group) => (
+                    <Chip
+                      key={group.key}
+                      label={group.key}
+                      icon={
+                        group.key !== "unknow"
+                          ? getMergedRankIcon(group.key)
+                          : undefined
+                      }
+                      onClick={() => {
+                        // Add all ranks in this group that aren't already selected
+                        const ranksToAdd = group.ranks.filter(
+                          (r) => !selectedRanks.includes(r)
+                        );
+                        if (ranksToAdd.length > 0) {
+                          setSelectedRanks([...selectedRanks, ...ranksToAdd]);
+                        }
+                      }}
+                      color="default"
+                      variant="outlined"
+                      size="small"
+                      sx={{
+                        m: 0.5,
+                        border: "1px solid",
+                        transition: "all 0.2s ease",
+                        bgcolor: `${getMergedRankColor(group.key)}15`,
+                        color: "black",
+                        "& .MuiChip-label": {
+                          color: "black",
+                        },
+                      }}
+                    />
+                  ))
+              : // Original individual rank options
+                ["bg", "bg+", "n-", "n", "n+", "s", "s+", "unknow"]
+                  .filter((rank) => !selectedRanks.includes(rank))
+                  .map((rank) => (
+                    <Chip
+                      key={rank}
+                      label={rank}
+                      icon={rank !== "unknow" ? getRankIcon(rank) : undefined}
+                      onClick={() => handleToggleRank(rank)}
+                      color="default"
+                      variant="outlined"
+                      size="small"
+                      sx={{
+                        m: 0.5,
+                        border: "1px solid",
+                        transition: "all 0.2s ease",
+                        bgcolor: `${rankColor[rank]}15`,
+                        color: "black",
+                        "& .MuiChip-label": {
+                          color: "black",
+                        },
+                      }}
+                    />
+                  ))}
           </Stack>
         </Box>
 

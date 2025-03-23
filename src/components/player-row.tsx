@@ -1,35 +1,36 @@
+import { useState, useEffect } from "react";
 import {
+  Box,
+  Stack,
   Typography,
+  Chip,
+  TextField,
+  InputAdornment,
   Card,
   CardContent,
   CardActions,
-  Chip,
-  Stack,
-  IconButton,
-  Tooltip,
   Divider,
-  TextField,
-  InputAdornment,
-  Box,
-  Alert,
+  Tooltip,
+  Grid,
   Menu,
   MenuItem,
+  IconButton,
+  Alert,
 } from "@mui/material";
-import { Grid } from "@mui/system";
-import moment from "moment";
-import { statusColors, rankColor } from "../constant";
 import { Player } from "../types";
 import { usePlayerContext } from "../providers/player-provider";
-import { useEffect, useState } from "react";
-import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import SearchIcon from "@mui/icons-material/Search";
+import EditIcon from "@mui/icons-material/Edit";
+import SaveIcon from "@mui/icons-material/Save";
 import SportsEsportsIcon from "@mui/icons-material/SportsEsports";
+import { statusColors, rankColor } from "../constant";
+import moment from "moment";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import SportsTennisIcon from "@mui/icons-material/SportsTennis";
 import PaidIcon from "@mui/icons-material/Paid";
 import HomeIcon from "@mui/icons-material/Home";
 import PauseIcon from "@mui/icons-material/Pause";
 import PersonIcon from "@mui/icons-material/Person";
-import SearchIcon from "@mui/icons-material/Search";
-import EditIcon from "@mui/icons-material/Edit";
 
 // Helper function to capitalize first letter of a string
 const capitalize = (str: string): string => {
@@ -41,7 +42,7 @@ export default function PlayerRow({
 }: {
   readonly players: readonly Player[];
 }) {
-  const { updatePlayer } = usePlayerContext();
+  const { updatePlayer, updatePlayerByID } = usePlayerContext();
   const [currentTime, setCurrentTime] = useState(moment.now());
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRank, setSelectedRank] = useState<string | null>(null);
@@ -49,6 +50,8 @@ export default function PlayerRow({
     null
   );
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [editingPlayerId, setEditingPlayerId] = useState<number | null>(null);
+  const [editingPlayerName, setEditingPlayerName] = useState<string>("");
 
   const rankOptions = ["bg", "bg+", "n-", "n", "n+", "s", "s+", "unknow"];
 
@@ -108,10 +111,19 @@ export default function PlayerRow({
 
   const handleCome = (player: Player) => {
     if (player.status !== "come") {
-      updatePlayer(player.name, {
-        status: "come",
-        waitingSince: moment.now(),
-      });
+      // When bringing a player from offline status, also set isPaid to false
+      if (player.status === "offline") {
+        updatePlayer(player.name, {
+          status: "come",
+          waitingSince: Date.now(),
+          isPaid: false,
+        });
+      } else {
+        updatePlayer(player.name, {
+          status: "come",
+          waitingSince: Date.now(),
+        });
+      }
     }
   };
   const handlePause = (player: Player) => {
@@ -125,12 +137,19 @@ export default function PlayerRow({
   };
   const handlePaid = (player: Player) => {
     if (player.isPaid) {
-      if (confirm("Player UnPaid?")) {
+      if (confirm(`Unpaid ${player.name}?`)) {
         updatePlayer(player.name, { isPaid: !player.isPaid, status: "come" });
       }
     }
     if (!player.isPaid) {
-      if (confirm("Player Paid?")) {
+      const shuttlesUsed = shuttleCount(player);
+
+      // If no shuttles used, total fee is 0
+      const totalFee = shuttlesUsed === 0 ? 0 : 80 + 22 * shuttlesUsed;
+
+      if (
+        confirm(`${player.name}\nFee: ฿${totalFee}\n(${shuttlesUsed} shuttles)`)
+      ) {
         updatePlayer(player.name, {
           isPaid: !player.isPaid,
           status: "go home",
@@ -208,7 +227,14 @@ export default function PlayerRow({
     });
 
     // Sort the statuses by priority
-    const statusPriority = ["come", "playing", "pause", "go home", "offline"];
+    const statusPriority = [
+      "come",
+      "queue",
+      "playing",
+      "pause",
+      "go home",
+      "offline",
+    ];
 
     // Return sorted groups
     return Object.entries(groups).sort((a, b) => {
@@ -219,6 +245,32 @@ export default function PlayerRow({
   };
 
   const groupedPlayers = groupPlayersByStatus(sortedPlayers);
+
+  const handleEditPlayerName = (player: Player) => {
+    setEditingPlayerId(player.id);
+    setEditingPlayerName(player.name);
+  };
+
+  const handleSavePlayerName = (player: Player) => {
+    if (editingPlayerName.trim() === "") {
+      alert("Player name cannot be empty");
+      return;
+    }
+
+    // Check if the name already exists (excluding the current player)
+    const nameExists = players.some(
+      (p) => p.name === editingPlayerName && p.id !== player.id
+    );
+
+    if (nameExists) {
+      alert("Player name must be unique");
+      return;
+    }
+
+    updatePlayerByID(player.id, { name: editingPlayerName });
+    setEditingPlayerId(null);
+    setEditingPlayerName("");
+  };
 
   return (
     <>
@@ -305,7 +357,7 @@ export default function PlayerRow({
           </Typography>
           <Grid container spacing={1}>
             {players.map((player, index) => (
-              <Grid key={index} size={{ xs: 12, sm: 4, md: 3, lg: 2 }}>
+              <Grid key={index} item xs={12} sm={4} md={3} lg={2}>
                 <Card
                   variant="outlined"
                   sx={{
@@ -324,14 +376,82 @@ export default function PlayerRow({
                       justifyContent="space-between"
                       alignItems="center"
                     >
-                      <Stack direction="row" spacing={0.5} alignItems="center">
-                        <Typography
-                          variant="subtitle1"
-                          noWrap
-                          sx={{ maxWidth: "100px" }}
-                        >
-                          {player.name}
-                        </Typography>
+                      <Stack
+                        direction="row"
+                        spacing={0.5}
+                        alignItems="center"
+                        sx={{ minWidth: "60%" }}
+                      >
+                        {editingPlayerId === player.id ? (
+                          // Editing mode
+                          <TextField
+                            size="small"
+                            value={editingPlayerName}
+                            onChange={(e) =>
+                              setEditingPlayerName(e.target.value)
+                            }
+                            autoFocus
+                            sx={{
+                              minWidth: "150px",
+                              "& .MuiInputBase-root": {
+                                height: "32px",
+                                fontSize: "0.9rem",
+                              },
+                            }}
+                            InputProps={{
+                              endAdornment: (
+                                <InputAdornment position="end">
+                                  <IconButton
+                                    edge="end"
+                                    size="small"
+                                    onClick={() => handleSavePlayerName(player)}
+                                  >
+                                    <SaveIcon fontSize="small" />
+                                  </IconButton>
+                                </InputAdornment>
+                              ),
+                              onKeyDown: (e) => {
+                                if (e.key === "Enter") {
+                                  handleSavePlayerName(player);
+                                } else if (e.key === "Escape") {
+                                  setEditingPlayerId(null);
+                                }
+                              },
+                            }}
+                          />
+                        ) : (
+                          // Display mode with edit button
+                          <Stack
+                            direction="row"
+                            spacing={0.5}
+                            alignItems="center"
+                          >
+                            <Typography
+                              variant="subtitle1"
+                              sx={{
+                                fontWeight: "medium",
+                                fontSize: "1rem",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                                maxWidth: "130px",
+                                minWidth: "50px",
+                              }}
+                            >
+                              {player.name}
+                            </Typography>
+                            {!isReadOnly(player) && (
+                              <IconButton
+                                size="small"
+                                onClick={() => handleEditPlayerName(player)}
+                                sx={{ p: 0.3 }}
+                              >
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                            )}
+                          </Stack>
+                        )}
+
                         <Tooltip title="Click to change rank">
                           <Chip
                             size="small"
@@ -431,9 +551,22 @@ export default function PlayerRow({
                             icon={
                               <AccessTimeIcon style={{ fontSize: "0.8rem" }} />
                             }
-                            label={moment(currentTime)
-                              .subtract(player.waitingSince)
-                              .format("mm:ss")}
+                            label={(() => {
+                              // Calculate elapsed time in milliseconds
+                              const elapsedMs =
+                                currentTime - player.waitingSince;
+                              // Convert to minutes and seconds
+                              const minutes = Math.floor(elapsedMs / 60000);
+                              const seconds = Math.floor(
+                                (elapsedMs % 60000) / 1000
+                              );
+                              // Format as mm:ss
+                              return `${minutes
+                                .toString()
+                                .padStart(2, "0")}:${seconds
+                                .toString()
+                                .padStart(2, "0")}`;
+                            })()}
                             variant="outlined"
                             color="info"
                             sx={{
